@@ -1,4 +1,4 @@
-#include "Types.h"
+#include "Types.hpp"
 #include "SM3.hpp"
 
 int main() {

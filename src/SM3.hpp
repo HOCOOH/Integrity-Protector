@@ -5,7 +5,7 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
-#include "Types.h"
+#include "Types.hpp"
 using namespace Types;
 
 class SM3 {
@@ -14,6 +14,10 @@ public:
     SM3() {}
     ~SM3() {}
 
+    // API
+    std::string Hash(const u8* arr, u32 length);
+
+private:
     // 常量
     u32 T(int j) { return (j < 16 ? 0x79CC4519U : 0x7A879D8AU); }
 
@@ -52,10 +56,7 @@ public:
         return p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
     }
 
-    // API
-    std::string Hash(const u8* arr, u32 length);
 
-private:
     // std::array<u32, 8> buf;
     u32 buf[8];
 
