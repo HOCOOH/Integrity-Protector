@@ -12,5 +12,9 @@ int main() {
 	std::string ret = SM3Handler.Hash(test, 64);
 	std::cout << ret << std::endl;
 
+	std::string path = "E:\\Learning Materials\\2019-200.zip";
+	ret = SM3Handler.Hash(path);
+	std::cout << ret << std::endl;
+
 	return 0;
 }

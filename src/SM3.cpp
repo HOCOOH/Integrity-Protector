@@ -1,17 +1,4 @@
 #include "SM3.hpp"
-#include <sstream>
-#include <iomanip>
-
-void SM3::InitIV() {
-    this->buf[0] = 0x7380166f;
-	this->buf[1] = 0x4914b2b9;
-	this->buf[2] = 0x172442d7;
-	this->buf[3] = 0xda8a0600;
-	this->buf[4] = 0xa96f30bc;
-	this->buf[5] = 0x163138aa;
-	this->buf[6] = 0xe38dee4d;
-	this->buf[7] = 0xb0fb0e4e;
-}
 
 void SM3::CF(const u8* block) {
 	// DumpU32((u32*)block, 16);
@@ -26,7 +13,7 @@ void SM3::CF(const u8* block) {
 		W[j] = EndianSwitch(((u32*)block)[j]);
     }
 	for (int j = 16; j < 68; j++) {
-		W[j] = P_1(W[j - 16] ^ W[j - 9] ^ RotateLeft(W[j - 3], 15)) ^ RotateLeft(W[j - 13], 7) ^ W[j - 6];
+		W[j] = P_1(W[j - 16] ^ W[j - 9] ^ RoLU32(W[j - 3], 15)) ^ RoLU32(W[j - 13], 7) ^ W[j - 6];
     }
 	for (int j = 0; j < 64; j++) {
 		W_1[j] = W[j] ^ W[j + 4];
@@ -42,16 +29,16 @@ void SM3::CF(const u8* block) {
 	G = this->buf[6];
 	H = this->buf[7];
 	for (int j = 0; j < 64; j++) {
-		SS1 = RotateLeft(((RotateLeft(A, 12)) + E + (RotateLeft(T(j), j))) & 0xFFFFFFFF, 7);
-		SS2 = SS1 ^ (RotateLeft(A, 12));
+		SS1 = RoLU32(((RoLU32(A, 12)) + E + (RoLU32(T(j), j))) & 0xFFFFFFFF, 7);
+		SS2 = SS1 ^ (RoLU32(A, 12));
 		TT1 = (FF(j, A, B, C) + D + SS2 + W_1[j]) & 0xFFFFFFFF;
 		TT2 = (GG(j, E, F, G) + H + SS1 + W[j]) & 0xFFFFFFFF;
 		D = C;
-		C = RotateLeft(B, 9);
+		C = RoLU32(B, 9);
 		B = A;
 		A = TT1;
 		H = G;
-		G = RotateLeft(F, 19);
+		G = RoLU32(F, 19);
 		F = E;
 		E = P_0(TT2);
 	}
@@ -64,21 +51,13 @@ void SM3::CF(const u8* block) {
 	this->buf[5] ^= F;
 	this->buf[6] ^= G;
 	this->buf[7] ^= H;
-
 }
 
-std::string SM3::Hash(const u8* arr, u32 length) {
-	InitIV();
-
-	for (u32 i = 0; i < length / 64; i++) {
-		CF(arr + i * 64);
-	}
-
-	// 处理短块
-	int left = length % 64;
+void SM3::Padding(const u8* block, int totalSize) {
+	int left = totalSize % 64;
 	u8 blockBuf[64] = {};
-	u64 bitLength = length * 8LL;
-	memcpy(blockBuf, arr + length - left, left);
+	u64 bitLength = totalSize * 8LL;
+	memcpy(blockBuf, block, left);
 	blockBuf[left] = 0x80;
 
 	// 判断当前短块是否能放下，若放不下则新加一个块，先对当前块进行压缩，将bitLength放在下一个块中
@@ -91,23 +70,40 @@ std::string SM3::Hash(const u8* arr, u32 length) {
 		blockBuf[56 + i] = (bitLength >> ((8 - 1 - i) * 8)) & 0xFF;
 	}
 	CF(blockBuf);
-
-	// 返回hash字符串
-	std::stringstream ss;
-	std::string strRet = "";
-	for (int i = 0; i < 8; i++) {
-		ss << std::hex << std::setw(8) << std::setfill('0') << this->buf[i];
-		strRet += ss.str() + ' ';
-		ss.str("");
-	}
-	strRet.pop_back();
-
-	return strRet;
 }
 
-void SM3::DumpU32(const u32* arr, int size) {
-	for (int i = 0; i < size; i++) {
-		printf("%08x ", EndianSwitch(arr[i]));
+std::string SM3::Hash(const u8* arr, u32 length) {
+	InitIV();
+
+	for (u32 i = 0; i < length / 64; i++) {
+		CF(arr + i * 64);
 	}
-	std::cout << std::endl << std::endl;
+
+	Padding(arr + (length / 64) * 64, length);
+
+	return DumpHashStr();
+}
+
+std::string SM3::Hash(const std::string& path) {
+	InitIV();
+
+	std::ifstream src(path, std::ios::in | std::ios::binary);
+	if (!src) {
+		std::cerr << "No such file: " << path << std::endl;
+		return "No such file: " + path;
+	}
+	src.seekg(0, std::ios::end);
+	u64 size = src.tellg();
+	src.seekg(0, std::ios::beg);
+
+	u8 blockBuf[64] = {};
+	for (u64 i = 0; i < size / 64; i++) {
+		src.read((char*)blockBuf, 64);
+		CF(blockBuf);
+	}
+
+	src.read((char*)blockBuf, 64);
+	Padding(blockBuf, size);
+
+	return DumpHashStr();
 }

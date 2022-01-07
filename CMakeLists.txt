@@ -5,10 +5,10 @@ cmake_minimum_required(VERSION 3.5.1)
 project(IntegrityProtector)
 
 # 设置C++编译标准
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 # 添加include位置
-include_directories(src)
+include_directories(include)
 
 # 生成可执行文件
 add_executable( IntegrityProtector
